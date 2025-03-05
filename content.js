@@ -30,6 +30,7 @@
 
     function findNextButton() {
         // Try different selectors that YouTube might use
+        // This is a list of different languages and their corresponding next button selectors
         const selectors = [
             'button[aria-label="Next video"]',
             'button[aria-label="Next"]',
