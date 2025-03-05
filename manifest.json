@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Shorts Auto-Scroller",
+  "version": "1.0",
+  "description": "Automatically scroll to the next YouTube Short when one ends",
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "action": {
+    "default_title": "YouTube Shorts Auto-Scroller"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "youtube-shorts-scroller@example.com"
+    }
+  }
+}
