@@ -3,6 +3,12 @@
   "name": "YouTube Shorts Auto-Scroller",
   "version": "1.0",
   "description": "Automatically scroll to the next YouTube Short when one ends",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "author": "Abdullah Anbar",
   "permissions": [
     "scripting"
   ],
