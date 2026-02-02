@@ -5,11 +5,11 @@ A modern Chrome extension that automatically scrolls to the next YouTube Short w
 ## ✨ Features
 
 - **Auto-scroll functionality** - Automatically advances to next Short when video ends
-- **Modern floating button** - Sleek circular design with glass morphism effect
-- **Draggable interface** - Move the button anywhere on screen
-- **Smart click detection** - Prevents accidental toggles while dragging
+- **Compact play/pause button** - Small floating control that stays out of the way
+- **Smooth drag & drop** - Drag the button without accidentally toggling play/pause
+- **Window-bounded dragging** - Button is clamped to the viewport so it won’t get “lost” off-screen
 - **Position memory** - Remembers button position across sessions
-- **Background operation** - Limited functionality when tab is in background
+- **Background operation (best-effort)** - In some cases it can keep advancing Shorts even while Chrome is in the background (browser/OS may limit this)
 - **Multi-language support** - Works with YouTube in different languages
 
 ## 🎮 How to Use
@@ -63,7 +63,7 @@ If the button gets stuck or positioned off-screen:
 ### Troubleshooting
 - **Button not appearing**: Make sure you're on a YouTube Shorts page (`/shorts/`)
 - **Auto-scroll not working**: Check if videos are actually playing (not paused)
-- **Background operation**: Limited functionality when tab is not active (browser limitation)
+- **Background operation**: Best-effort only; some apps/games/OS power modes may pause or heavily throttle background video/timers
 
 ## 🌐 Browser Compatibility
 
@@ -76,6 +76,7 @@ If the button gets stuck or positioned off-screen:
 
 - `storage` - Save button position preferences
 - `scripting` - Inject functionality into YouTube pages
+- `alarms` - Background scheduling (best-effort)
 - `activeTab` - Access current tab for settings
 
 ## 🚀 Background Operation
@@ -104,7 +105,12 @@ If the button gets stuck or positioned off-screen:
 
 ## 🔄 Version History
 
-### v1.3 (Current)
+### v1.4 (Current)
+- Smoother drag & drop with click suppression (no accidental toggles)
+- Button movement is clamped to the window (prevents losing it off-screen)
+- Best-effort background support improvements (may still be limited by browser/OS)
+
+### v1.3
 - Modern circular button design with glass morphism
 - Enhanced drag handling with click prevention
 - Improved background operation

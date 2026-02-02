@@ -18,6 +18,12 @@
     let isPageVisible = !document.hidden;
     let backgroundCheckInterval = null;
 
+    // Service-worker scheduling (more reliable in background than content-script timers)
+    let lastScheduleSentAt = 0;
+    const SCHEDULE_THROTTLE_MS = 1500;
+    let scheduleProbeVideo = null;
+    let scheduleProbeHandler = null;
+
     // --- Helper: Check if on Shorts page ---
     function isShortsPage() {
         return window.location.pathname.startsWith('/shorts/');
@@ -79,6 +85,40 @@
         localStorage.removeItem('yt-shorts-auto-scroll-btn-pos');
     }
 
+    function scheduleNextInServiceWorker(timeLeftMs) {
+        if (!autoScroll) return;
+        if (!(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage)) return;
+
+        const now = Date.now();
+        if ((now - lastScheduleSentAt) < SCHEDULE_THROTTLE_MS) return;
+        lastScheduleSentAt = now;
+
+        // Best-effort: ignore errors if the worker isn't available.
+        try {
+            chrome.runtime.sendMessage({ action: 'scheduleNext', timeLeftMs });
+        } catch {
+            // Ignore.
+        }
+    }
+
+    function clearServiceWorkerSchedule() {
+        if (!(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage)) return;
+        try {
+            chrome.runtime.sendMessage({ action: 'clearSchedule' });
+        } catch {
+            // Ignore.
+        }
+    }
+
+    function setServiceWorkerEnabled(enabled) {
+        if (!(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage)) return;
+        try {
+            chrome.runtime.sendMessage({ action: 'setEnabled', enabled: !!enabled });
+        } catch {
+            // Ignore.
+        }
+    }
+
     // --- Helper: Position Button Relative to Shorts Video ---
     function positionButton(button, pos) {
         const likeBtn = getShortsLikeButton();
@@ -117,56 +157,135 @@
 
     // --- Helper: Make Button Draggable ---
     function makeButtonDraggable(button) {
+        // Pointer-events based drag: smoother (works for mouse + touch + pen)
+        // and avoids accidental click toggles when the user intended to drag.
+        const DRAG_THRESHOLD_PX = 6;
+
+        let activePointerId = null;
+        let offsetX = 0;
+        let offsetY = 0;
+        let startClientX = 0;
+        let startClientY = 0;
         let isDragging = false;
-        let offsetX = 0, offsetY = 0;
-        let hasMoved = false;
-        
-        button.addEventListener('mousedown', function (e) {
-            isDragging = true;
-            hasMoved = false;
-            offsetX = e.clientX - button.getBoundingClientRect().left;
-            offsetY = e.clientY - button.getBoundingClientRect().top;
-            document.body.style.userSelect = 'none';
-            e.preventDefault(); // Prevent default click behavior
-        });
-        
-        document.addEventListener('mousemove', function (e) {
-            if (!isDragging) return;
-            hasMoved = true; // Mark that we've moved
-            let x = e.clientX - offsetX;
-            let y = e.clientY - offsetY;
-            button.style.left = x + 'px';
-            button.style.top = y + 'px';
-        });
-        
-        document.addEventListener('mouseup', function (e) {
-            if (!isDragging) return;
+        let didDrag = false;
+        let suppressClick = false;
+
+        // Avoid the "laggy drag" problem if a transition animates left/top.
+        const baseTransition = button.style.transition || '';
+
+        let rafId = null;
+        let pendingLeft = null;
+        let pendingTop = null;
+
+        const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
+        function schedulePosition(left, top) {
+            pendingLeft = left;
+            pendingTop = top;
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                if (pendingLeft == null || pendingTop == null) return;
+                button.style.left = pendingLeft + 'px';
+                button.style.top = pendingTop + 'px';
+            });
+        }
+
+        // Better UX cues and fewer browser-default gestures interfering.
+        button.style.touchAction = 'none';
+        button.style.cursor = 'grab';
+        button.draggable = false;
+
+        button.addEventListener('pointerdown', (e) => {
+            // Left click only for mouse; allow touch/pen.
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+            activePointerId = e.pointerId;
+            try { button.setPointerCapture(activePointerId); } catch {}
+
+            const rect = button.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            startClientX = e.clientX;
+            startClientY = e.clientY;
             isDragging = false;
-            document.body.style.userSelect = '';
-            
-            if (hasMoved) {
-                // Save position only if we actually dragged
-                saveButtonPosition(parseInt(button.style.left), parseInt(button.style.top));
-                // Prevent the click event from firing
-                setTimeout(() => {
-                    hasMoved = false;
-                }, 10);
-            } else {
-                // It was just a click, allow it to proceed
-                hasMoved = false;
+            didDrag = false;
+
+            // Disable transitions during a potential drag; restore on pointerup.
+            button.style.transition = 'none';
+            document.body.style.userSelect = 'none';
+
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
+
+        button.addEventListener('pointermove', (e) => {
+            if (activePointerId == null || e.pointerId !== activePointerId) return;
+
+            const dx = e.clientX - startClientX;
+            const dy = e.clientY - startClientY;
+
+            if (!isDragging) {
+                if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+                isDragging = true;
+                didDrag = true;
+                button.style.cursor = 'grabbing';
             }
-        });
-        
-        // Handle click events - only fire if we didn't drag
-        button.addEventListener('click', function(e) {
-            if (hasMoved) {
+
+            const maxLeft = Math.max(0, window.innerWidth - button.offsetWidth);
+            const maxTop = Math.max(0, window.innerHeight - button.offsetHeight);
+
+            const left = clamp(Math.round(e.clientX - offsetX), 0, maxLeft);
+            const top = clamp(Math.round(e.clientY - offsetY), 0, maxTop);
+
+            schedulePosition(left, top);
+
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
+
+        function endPointer(e) {
+            if (activePointerId == null || e.pointerId !== activePointerId) return;
+
+            try { button.releasePointerCapture(activePointerId); } catch {}
+            activePointerId = null;
+
+            document.body.style.userSelect = '';
+            button.style.cursor = 'grab';
+            button.style.transition = baseTransition;
+
+            if (isDragging) {
+                const left = parseInt(button.style.left, 10);
+                const top = parseInt(button.style.top, 10);
+                if (Number.isFinite(left) && Number.isFinite(top)) {
+                    saveButtonPosition(left, top);
+                }
+            }
+
+            isDragging = false;
+
+            // Suppress the next click if we dragged (even slightly).
+            if (didDrag) {
+                suppressClick = true;
+                setTimeout(() => { suppressClick = false; }, 0);
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        button.addEventListener('pointerup', endPointer, { passive: false });
+        button.addEventListener('pointercancel', endPointer, { passive: false });
+
+        // Capture-phase click handler so we can reliably cancel after a drag.
+        button.addEventListener('click', (e) => {
+            if (suppressClick) {
                 e.preventDefault();
                 e.stopPropagation();
-                return false;
+                return;
             }
-            // Allow the click to proceed for toggle
             toggleAutoScroll();
-        });
+        }, true);
     }
 
     // --- Helper: Reposition Button on Resize/Navigation ---
@@ -213,17 +332,19 @@
         button.style.color = '#fff';
         button.style.border = '1px solid rgba(239, 68, 68, 0.4)'; // Red border
         button.style.borderRadius = '50%';
-        button.style.cursor = 'pointer';
+        button.style.cursor = 'grab';
         button.style.fontWeight = '500';
         button.style.fontSize = '14px';
         button.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)';
-        button.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        // Important: don't transition left/top, or dragging will feel laggy.
+        button.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
         button.style.display = 'flex';
         button.style.alignItems = 'center';
         button.style.justifyContent = 'center';
         button.style.zIndex = '9999999';
         button.style.userSelect = 'none';
         button.style.outline = 'none';
+        button.style.touchAction = 'none';
         
         // Position button
         loadButtonPosition((pos) => {
@@ -271,11 +392,14 @@
         autoScroll = !autoScroll;
         updateButtonState();
         if (autoScroll) {
+            setServiceWorkerEnabled(true);
             attachVideoListener();
             startBackgroundOptimization();
         } else {
             detachVideoListener();
             stopBackgroundOptimization();
+            clearServiceWorkerSchedule();
+            setServiceWorkerEnabled(false);
         }
     }
 
@@ -383,6 +507,8 @@
 
     // --- Scroll to Next Short ---
     function scrollToNext() {
+        // Prevent any pending background alarm from double-advancing.
+        clearServiceWorkerSchedule();
         const nextButton = findNextButton();
         if (nextButton) {
             nextButton.click();
@@ -406,6 +532,14 @@
     function handleTimeUpdate(event) {
         const video = event.target;
         if (!video || !autoScroll) return;
+
+        // Keep the service worker updated with the estimated remaining time.
+        // This is what makes "background" advancement much more reliable.
+        if (video.duration > 0 && video.currentTime >= 0 && Number.isFinite(video.playbackRate) && video.playbackRate > 0) {
+            const remainingSeconds = (video.duration - video.currentTime) / video.playbackRate;
+            const remainingMs = Math.max(0, Math.floor(remainingSeconds * 1000));
+            if (remainingMs > 0) scheduleNextInServiceWorker(remainingMs);
+        }
         
         if (video.duration > 0 &&
             video.currentTime > 0 &&
@@ -431,12 +565,43 @@
         videoListenerAttached = true;
         lastVideoSrc = shortsVideo.src;
         currentVideo = shortsVideo;
+
+        // If YouTube stops firing `timeupdate` while deeply backgrounded,
+        // these events still commonly fire when metadata/playback state changes.
+        scheduleProbeVideo = shortsVideo;
+        scheduleProbeHandler = () => {
+            if (!autoScroll) return;
+            if (shortsVideo.duration > 0 && shortsVideo.currentTime >= 0 && Number.isFinite(shortsVideo.playbackRate) && shortsVideo.playbackRate > 0) {
+                const remainingSeconds = (shortsVideo.duration - shortsVideo.currentTime) / shortsVideo.playbackRate;
+                const remainingMs = Math.max(0, Math.floor(remainingSeconds * 1000));
+                if (remainingMs > 0) scheduleNextInServiceWorker(remainingMs);
+            }
+        };
+        shortsVideo.addEventListener('loadedmetadata', scheduleProbeHandler);
+        shortsVideo.addEventListener('durationchange', scheduleProbeHandler);
+        shortsVideo.addEventListener('playing', scheduleProbeHandler);
+        shortsVideo.addEventListener('ratechange', scheduleProbeHandler);
+
+        // Kick off an initial schedule as soon as we see a playable video.
+        if (shortsVideo.duration > 0 && shortsVideo.currentTime >= 0 && Number.isFinite(shortsVideo.playbackRate) && shortsVideo.playbackRate > 0) {
+            const remainingSeconds = (shortsVideo.duration - shortsVideo.currentTime) / shortsVideo.playbackRate;
+            const remainingMs = Math.max(0, Math.floor(remainingSeconds * 1000));
+            if (remainingMs > 0) scheduleNextInServiceWorker(remainingMs);
+        }
     }
 
     function detachVideoListener() {
         if (currentVideo) {
             currentVideo.removeEventListener('timeupdate', handleTimeUpdate);
         }
+        if (scheduleProbeVideo && scheduleProbeHandler) {
+            scheduleProbeVideo.removeEventListener('loadedmetadata', scheduleProbeHandler);
+            scheduleProbeVideo.removeEventListener('durationchange', scheduleProbeHandler);
+            scheduleProbeVideo.removeEventListener('playing', scheduleProbeHandler);
+            scheduleProbeVideo.removeEventListener('ratechange', scheduleProbeHandler);
+        }
+        scheduleProbeVideo = null;
+        scheduleProbeHandler = null;
         videoListenerAttached = false;
         lastVideoSrc = null;
         currentVideo = null;
@@ -448,6 +613,7 @@
             injectButton();
             updateButtonState();
             if (autoScroll) {
+                setServiceWorkerEnabled(true);
                 attachVideoListener();
                 startBackgroundOptimization();
             }
@@ -455,6 +621,8 @@
             removeButton();
             detachVideoListener();
             stopBackgroundOptimization();
+            clearServiceWorkerSchedule();
+            setServiceWorkerEnabled(false);
             autoScroll = false;
         }
     }
