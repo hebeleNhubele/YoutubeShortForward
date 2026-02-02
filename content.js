@@ -17,9 +17,6 @@
     // Background operation
     let isPageVisible = !document.hidden;
     let backgroundCheckInterval = null;
-    let dragStartPos = { x: 0, y: 0 };
-    let isDragging = false;
-    let dragThreshold = 5; // pixels
 
     // --- Helper: Check if on Shorts page ---
     function isShortsPage() {
@@ -39,7 +36,7 @@
     // --- Helper: Save/Load Button Position (using chrome.storage for persistence) ---
     function saveButtonPosition(x, y) {
         const pos = { x, y };
-        console.log('Saving button position:', pos);
+
         // Use chrome.storage if available, fallback to localStorage
         if (typeof chrome !== 'undefined' && chrome.storage) {
             chrome.storage.local.set({ 'yt-shorts-auto-scroll-btn-pos': pos });
@@ -75,7 +72,6 @@
     }
 
     function clearButtonPosition() {
-        console.log('Clearing all button position storage');
         // Clear both storage methods
         if (typeof chrome !== 'undefined' && chrome.storage) {
             chrome.storage.local.remove('yt-shorts-auto-scroll-btn-pos');
@@ -96,7 +92,6 @@
             // Default position next to Like button
             setTimeout(() => {
                 const rect = likeBtn.getBoundingClientRect();
-                console.log('Like button rect:', rect);
                 button.style.position = 'fixed';
                 button.style.left = (rect.right + margin) + 'px';
                 button.style.top = (rect.top - button.offsetHeight/2 + rect.height/2) + 'px';
@@ -111,10 +106,8 @@
                     button.style.position = 'fixed';
                     button.style.left = (rect.right - button.offsetWidth - fallbackMargin) + 'px';
                     button.style.top = (rect.bottom - button.offsetHeight - fallbackMargin) + 'px';
-                    console.log('Button positioned at fallback:', button.style.left, button.style.top);
                 }, 100);
             } else {
-                console.log('No container found, using absolute fallback');
                 button.style.position = 'fixed';
                 button.style.left = '20px';
                 button.style.top = '100px';
@@ -122,102 +115,57 @@
         }
     }
 
-    // --- Helper: Make Button Draggable (with click prevention during drag) ---
+    // --- Helper: Make Button Draggable ---
     function makeButtonDraggable(button) {
-        let isMouseDown = false;
+        let isDragging = false;
         let offsetX = 0, offsetY = 0;
         let hasMoved = false;
-        let startX = 0, startY = 0;
         
         button.addEventListener('mousedown', function (e) {
-            isMouseDown = true;
-            isDragging = false;
+            isDragging = true;
             hasMoved = false;
-            
-            // Get current button position
-            const rect = button.getBoundingClientRect();
-            startX = rect.left;
-            startY = rect.top;
-            
-            // Calculate offset from mouse to button's top-left corner
-            offsetX = e.clientX - startX;
-            offsetY = e.clientY - startY;
-            
-            dragStartPos = { x: e.clientX, y: e.clientY };
-            
+            offsetX = e.clientX - button.getBoundingClientRect().left;
+            offsetY = e.clientY - button.getBoundingClientRect().top;
             document.body.style.userSelect = 'none';
-            e.preventDefault();
-            
-            console.log('Drag start - Button at:', startX, startY, 'Mouse at:', e.clientX, e.clientY, 'Offset:', offsetX, offsetY);
+            e.preventDefault(); // Prevent default click behavior
         });
         
         document.addEventListener('mousemove', function (e) {
-            if (!isMouseDown) return;
-            
-            const deltaX = Math.abs(e.clientX - dragStartPos.x);
-            const deltaY = Math.abs(e.clientY - dragStartPos.y);
-            
-            // Check if we've moved beyond threshold
-            if (!hasMoved && (deltaX > dragThreshold || deltaY > dragThreshold)) {
-                hasMoved = true;
-                isDragging = true;
-                console.log('Started dragging');
-            }
-            
-            if (hasMoved) {
-                // Calculate new position based on mouse position and offset
-                let x = e.clientX - offsetX;
-                let y = e.clientY - offsetY;
-                
-                // Keep button within viewport
-                x = Math.max(0, Math.min(x, window.innerWidth - button.offsetWidth));
-                y = Math.max(0, Math.min(y, window.innerHeight - button.offsetHeight));
-                
-                // Apply position immediately
-                button.style.position = 'fixed';
-                button.style.left = x + 'px';
-                button.style.top = y + 'px';
-                
-                console.log('Dragging to:', x, y);
-            }
+            if (!isDragging) return;
+            hasMoved = true; // Mark that we've moved
+            let x = e.clientX - offsetX;
+            let y = e.clientY - offsetY;
+            button.style.left = x + 'px';
+            button.style.top = y + 'px';
         });
         
         document.addEventListener('mouseup', function (e) {
-            if (isMouseDown) {
-                document.body.style.userSelect = '';
-                
-                console.log('Mouse up - hasMoved:', hasMoved);
-                
-                if (hasMoved) {
-                    // Save the final position
-                    const finalX = parseInt(button.style.left);
-                    const finalY = parseInt(button.style.top);
-                    console.log('Saving final position:', finalX, finalY);
-                    saveButtonPosition(finalX, finalY);
-                    
-                    // Prevent click event after drag
-                    setTimeout(() => {
-                        isDragging = false;
-                    }, 100);
-                } else {
-                    // It was just a click, allow toggle
-                    isDragging = false;
-                    toggleAutoScroll();
-                }
-                
-                isMouseDown = false;
+            if (!isDragging) return;
+            isDragging = false;
+            document.body.style.userSelect = '';
+            
+            if (hasMoved) {
+                // Save position only if we actually dragged
+                saveButtonPosition(parseInt(button.style.left), parseInt(button.style.top));
+                // Prevent the click event from firing
+                setTimeout(() => {
+                    hasMoved = false;
+                }, 10);
+            } else {
+                // It was just a click, allow it to proceed
                 hasMoved = false;
             }
         });
         
-        // Prevent click event if we dragged
+        // Handle click events - only fire if we didn't drag
         button.addEventListener('click', function(e) {
-            if (isDragging || hasMoved) {
-                console.log('Preventing click due to drag');
+            if (hasMoved) {
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
             }
+            // Allow the click to proceed for toggle
+            toggleAutoScroll();
         });
     }
 
@@ -284,24 +232,20 @@
         
         // Modern hover effects
         button.onmouseenter = () => {
-            if (!isDragging) {
-                button.style.transform = 'scale(1.1)';
-                button.style.background = autoScroll ? 
-                    'rgba(34, 197, 94, 0.9)' : 
-                    'rgba(239, 68, 68, 0.9)'; // Red instead of black
-                button.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3)';
-                button.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-            }
+            button.style.transform = 'scale(1.1)';
+            button.style.background = autoScroll ? 
+                'rgba(34, 197, 94, 0.9)' : 
+                'rgba(239, 68, 68, 0.9)'; // Red instead of black
+            button.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3)';
+            button.style.borderColor = 'rgba(255, 255, 255, 0.4)';
         };
         button.onmouseleave = () => {
-            if (!isDragging) {
-                button.style.transform = 'scale(1)';
-                button.style.background = autoScroll ? 
-                    'rgba(34, 197, 94, 0.8)' : 
-                    'rgba(239, 68, 68, 0.8)'; // Red instead of black
-                button.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)';
-                button.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            }
+            button.style.transform = 'scale(1)';
+            button.style.background = autoScroll ? 
+                'rgba(34, 197, 94, 0.8)' : 
+                'rgba(239, 68, 68, 0.8)'; // Red instead of black
+            button.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)';
+            button.style.borderColor = 'rgba(255, 255, 255, 0.2)';
         };
         
         document.body.appendChild(button);
@@ -363,8 +307,6 @@
 
     // --- Background Operation Optimization ---
     function startBackgroundOptimization() {
-        console.log('Starting background optimization');
-        
         // Monitor page visibility
         document.addEventListener('visibilitychange', handleVisibilityChange);
         
@@ -376,10 +318,8 @@
                     const video = document.querySelector('ytd-reel-video-renderer video');
                     if (video && video.duration > 0 && video.currentTime > 0) {
                         const timeLeft = video.duration - video.currentTime;
-                        console.log('Background check - time left:', timeLeft);
                         
                         if (timeLeft < 1.0 && !video.paused && !video.ended) {
-                            console.log('Background scroll triggered');
                             scrollToNext();
                         }
                     }
@@ -402,7 +342,6 @@
     }
     
     function stopBackgroundOptimization() {
-        console.log('Stopping background optimization');
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         if (backgroundCheckInterval) {
             clearInterval(backgroundCheckInterval);
@@ -412,14 +351,10 @@
     
     function handleVisibilityChange() {
         isPageVisible = !document.hidden;
-        console.log('Visibility changed - visible:', isPageVisible);
         
         if (isPageVisible && autoScroll) {
             // Re-attach listener when page becomes visible
-            console.log('Page visible again, re-attaching video listener');
             attachVideoListener();
-        } else if (!isPageVisible && autoScroll) {
-            console.log('Page hidden, relying on background checks');
         }
     }
 
@@ -546,27 +481,20 @@
     // --- Message handling for popup communication ---
     if (typeof chrome !== 'undefined' && chrome.runtime) {
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-            console.log('Content script received message:', message);
-            
             if (message.action === 'resetButtonPosition') {
                 const button = document.getElementById(BUTTON_ID);
                 const isOnShorts = isShortsPage();
                 
-                console.log('Reset request - Button found:', !!button, 'On shorts:', isOnShorts);
-                
                 if (button && isOnShorts) {
                     // Clear stored position completely
                     clearButtonPosition();
-                    console.log('All storage cleared');
                     
                     // Force immediate reposition to default
-                    console.log('Forcing button reposition');
                     positionButton(button, null);
                     
                     sendResponse({success: true, message: 'Button reset successfully'});
                 } else {
                     const reason = !button ? 'Button not found' : 'Not on Shorts page';
-                    console.log('Reset failed:', reason);
                     sendResponse({success: false, reason: reason});
                 }
                 return true;
@@ -576,12 +504,10 @@
     
     // Also listen for custom events (fallback)
     document.addEventListener('resetButtonPosition', () => {
-        console.log('Custom reset event received');
         const button = document.getElementById(BUTTON_ID);
         if (button && isShortsPage()) {
             localStorage.removeItem('yt-shorts-auto-scroll-btn-pos');
             positionButton(button, null);
-            console.log('Button reset via custom event');
         }
     });
 
