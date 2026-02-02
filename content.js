@@ -13,13 +13,13 @@
     let videoListenerAttached = false;
     let observer = null;
     let url = location.href;
+    
+    // Background operation
+    let isPageVisible = !document.hidden;
+    let backgroundCheckInterval = null;
     let dragStartPos = { x: 0, y: 0 };
     let isDragging = false;
     let dragThreshold = 5; // pixels
-    
-    // Background operation optimization
-    let isPageVisible = !document.hidden;
-    let backgroundCheckInterval = null;
 
     // --- Helper: Check if on Shorts page ---
     function isShortsPage() {
@@ -53,16 +53,13 @@
             chrome.storage.local.get('yt-shorts-auto-scroll-btn-pos', function(result) {
                 const pos = result['yt-shorts-auto-scroll-btn-pos'];
                 if (pos && callback) {
-                    console.log('Loaded position from chrome.storage:', pos);
                     callback(pos);
                 } else {
                     // Fallback to localStorage
                     try {
                         const localPos = JSON.parse(localStorage.getItem('yt-shorts-auto-scroll-btn-pos'));
-                        console.log('Loaded position from localStorage:', localPos);
                         callback(localPos);
                     } catch {
-                        console.log('No position found in storage');
                         callback(null);
                     }
                 }
@@ -70,10 +67,8 @@
         } else {
             try {
                 const pos = JSON.parse(localStorage.getItem('yt-shorts-auto-scroll-btn-pos'));
-                console.log('Loaded position from localStorage (no chrome.storage):', pos);
                 callback(pos);
             } catch {
-                console.log('No position found in localStorage');
                 callback(null);
             }
         }
@@ -90,20 +85,14 @@
 
     // --- Helper: Position Button Relative to Shorts Video ---
     function positionButton(button, pos) {
-        console.log('positionButton called with pos:', pos);
-        
         const likeBtn = getShortsLikeButton();
         const margin = 8;
         
-        console.log('Like button found:', !!likeBtn);
-        
         if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
-            console.log('Using saved position:', pos);
             button.style.position = 'fixed';
             button.style.left = pos.x + 'px';
             button.style.top = pos.y + 'px';
         } else if (likeBtn) {
-            console.log('Positioning next to like button');
             // Default position next to Like button
             setTimeout(() => {
                 const rect = likeBtn.getBoundingClientRect();
@@ -111,10 +100,8 @@
                 button.style.position = 'fixed';
                 button.style.left = (rect.right + margin) + 'px';
                 button.style.top = (rect.top - button.offsetHeight/2 + rect.height/2) + 'px';
-                console.log('Button positioned at:', button.style.left, button.style.top);
             }, 100);
         } else {
-            console.log('Using fallback position');
             // Fallback: bottom right of Shorts video
             const container = getShortsVideoContainer();
             if (container) {
@@ -270,13 +257,13 @@
         
         // Modern styling
         button.style.position = 'fixed';
-        button.style.width = '48px';
-        button.style.height = '48px';
+        button.style.width = '56px';  // Bigger
+        button.style.height = '56px'; // Bigger
         button.style.padding = '0';
-        button.style.background = 'rgba(0, 0, 0, 0.8)';
+        button.style.background = 'rgba(239, 68, 68, 0.8)'; // Red instead of black
         button.style.backdropFilter = 'blur(10px)';
         button.style.color = '#fff';
-        button.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        button.style.border = '1px solid rgba(239, 68, 68, 0.4)'; // Red border
         button.style.borderRadius = '50%';
         button.style.cursor = 'pointer';
         button.style.fontWeight = '500';
@@ -301,7 +288,7 @@
                 button.style.transform = 'scale(1.1)';
                 button.style.background = autoScroll ? 
                     'rgba(34, 197, 94, 0.9)' : 
-                    'rgba(239, 68, 68, 0.9)';
+                    'rgba(239, 68, 68, 0.9)'; // Red instead of black
                 button.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3)';
                 button.style.borderColor = 'rgba(255, 255, 255, 0.4)';
             }
@@ -311,7 +298,7 @@
                 button.style.transform = 'scale(1)';
                 button.style.background = autoScroll ? 
                     'rgba(34, 197, 94, 0.8)' : 
-                    'rgba(0, 0, 0, 0.8)';
+                    'rgba(239, 68, 68, 0.8)'; // Red instead of black
                 button.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)';
                 button.style.borderColor = 'rgba(255, 255, 255, 0.2)';
             }
@@ -369,8 +356,8 @@
                     <path d="M8 5v14l11-7z"/>
                 </svg>
             `;
-            button.style.background = 'rgba(0, 0, 0, 0.8)'; // Dark when inactive
-            button.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            button.style.background = 'rgba(239, 68, 68, 0.8)'; // Red instead of black
+            button.style.borderColor = 'rgba(239, 68, 68, 0.4)'; // Red border
         }
     }
 
