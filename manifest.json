@@ -22,7 +22,8 @@
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "action": {
-    "default_title": "YouTube Shorts Auto-Scroller"
+    "default_title": "YouTube Shorts Auto-Scroller",
+    "default_popup": "popup.html"
   },
   "browser_specific_settings": {
     "gecko": {
