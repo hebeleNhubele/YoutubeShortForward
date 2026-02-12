@@ -1,13 +1,25 @@
 // Handle reset button click
 document.getElementById('resetBtn').addEventListener('click', () => {
-    // Send message to content script on all YouTube tabs
-    chrome.tabs.query({ url: '*://*.youtube.com/*' }, (tabs) => {
+    // Helper to send message
+    const sendMessageToTabs = (tabs) => {
         tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, { action: 'resetButtonPosition' }, () => {
-                // Ignore errors if content script isn't loaded yet
-                chrome.runtime.lastError;
+            chrome.tabs.sendMessage(tab.id, { action: 'resetButtonPosition' }, (response) => {
+                // Check for errors (e.g., content script not ready)
+                const err = chrome.runtime.lastError;
             });
         });
+    };
+
+    // Try to find all YouTube tabs first
+    chrome.tabs.query({ url: '*://*.youtube.com/*' }, (tabs) => {
+        if (tabs.length > 0) {
+            sendMessageToTabs(tabs);
+        } else {
+            // Fallback: Try the active tab if URL matching failed
+            chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
+                sendMessageToTabs(activeTabs);
+            });
+        }
     });
     
     // Show confirmation and close popup
