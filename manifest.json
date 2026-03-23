@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Shorts Auto-Scroller",
-  "version": "1.9",
+  "version": "2.0",
   "description": "Automatically scroll to the next YouTube Short when one ends",
   "icons": {
     "16": "icon16.png",
