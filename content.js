@@ -94,13 +94,17 @@
     // --- Helper: Make Button Draggable ---
     function makeButtonDraggable(button) {
         let offsetX = 0, offsetY = 0;
+        let startX = 0, startY = 0;
         let hasDragged = false; // This will be reset on each mousedown
+        const DRAG_THRESHOLD_PX = 5; // Must move this many pixels before it counts as a drag
 
         button.addEventListener('mousedown', function (e) {
             isDragging = true;
             hasDragged = false; // Reset the drag state
             offsetX = e.clientX - button.getBoundingClientRect().left;
             offsetY = e.clientY - button.getBoundingClientRect().top;
+            startX = e.clientX;
+            startY = e.clientY;
             document.body.style.userSelect = 'none';
 
             // Add listeners to the document to handle dragging anywhere on the page
@@ -110,7 +114,11 @@
 
         function onMouseMove(e) {
             if (!isDragging) return;
-            hasDragged = true; // If we're dragging and mouse moves, it's a drag
+            // Only count as a drag if the mouse moved beyond the threshold
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!hasDragged && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD_PX) return;
+            hasDragged = true; // Mouse moved far enough — it's a real drag
             
             const buttonWidth = button.offsetWidth;
             const buttonHeight = button.offsetHeight;
@@ -146,6 +154,7 @@
             if (hasDragged) {
                 // If a drag just happened, stop this click from triggering the button's action.
                 e.stopImmediatePropagation();
+                hasDragged = false; // Reset so the very next click works cleanly
             }
         }, true); // <-- The 'true' is important. It puts this listener in the capture phase.
     }

@@ -12,14 +12,14 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.youtube.com/*"
+        "*://*.youtube.com/shorts/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"
     }
   ],
   "host_permissions": [
-    "*://*.youtube.com/*"
+    "*://*.youtube.com/shorts/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
