@@ -6,6 +6,9 @@
 // @author       Abdullah Anbar
 // ==/UserScript==
 (function () {
+    if (window.__ytShortsAutoScrollerInjected) return;
+    window.__ytShortsAutoScrollerInjected = true;
+
     const BUTTON_ID = 'yt-shorts-auto-scroll-btn';
     let autoScroll = false;
     let currentVideo = null;

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-<<<<<<< HEAD
     <meta charset="UTF-8">
     <style>
         body {
@@ -27,84 +26,23 @@
             color: #5f6368;
             margin: 0;
         }
-        button {
-            padding: 10px 16px;
-=======
-    <meta charset="utf-8">
-    <style>
-        body {
-            width: 280px;
-            padding: 16px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
-            margin: 0;
-            background: #f8f9fa;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
-            color: #333;
-        }
-        
-        .header p {
-            margin: 0;
-            color: #666;
-            font-size: 12px;
-        }
-        
-        .setting-group {
-            background: white;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .setting-title {
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-        }
-        
-        .setting-description {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 12px;
-            line-height: 1.4;
-        }
-        
         .reset-btn {
-            width: 100%;
-            padding: 10px;
->>>>>>> 6a42e8384ef2d5cc284ffe9f5519065eee9e5b01
-            background: linear-gradient(90deg, #ff512f 0%, #dd2476 100%);
+            padding: 10px 16px;
+            background: linear-gradient(90deg, #34a853 0%, #1e8e3e 100%);
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-<<<<<<< HEAD
             font-size: 13px;
             font-weight: 500;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        button:hover {
-            transform: scale(1.02);
-            box-shadow: 0 2px 8px rgba(221, 36, 118, 0.3);
-        }
-        button:active {
-            transform: scale(0.98);
-        }
-        .reset-btn {
-            background: linear-gradient(90deg, #34a853 0%, #1e8e3e 100%);
-        }
         .reset-btn:hover {
+            transform: scale(1.02);
             box-shadow: 0 2px 8px rgba(52, 168, 83, 0.3);
+        }
+        .reset-btn:active {
+            transform: scale(0.98);
         }
         .info {
             padding: 8px 12px;
@@ -113,88 +51,27 @@
             border-radius: 4px;
             font-size: 12px;
             color: #2e7d32;
-=======
-            font-weight: 600;
-            font-size: 13px;
-            transition: transform 0.2s, box-shadow 0.2s;
         }
-        
-        .reset-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(221,36,118,0.3);
-        }
-        
-        .reset-btn:active {
-            transform: translateY(0);
-        }
-        
-        .status {
-            text-align: center;
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-top: 8px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        
-        .status.show {
-            opacity: 1;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
         .footer {
-            text-align: center;
-            margin-top: 16px;
             font-size: 11px;
-            color: #999;
->>>>>>> 6a42e8384ef2d5cc284ffe9f5519065eee9e5b01
+            color: #5f6368;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-<<<<<<< HEAD
     <div class="container">
         <h2 class="title">YouTube Shorts Auto-Scroller</h2>
         <p class="description">Manage your auto-scroll settings</p>
-        
+
         <div class="info">
-            ℹ️ Click the reset button to restore the button to its default position.
+            Click reset to move the floating button back to default position.
         </div>
-        
-        <button class="reset-btn" id="resetBtn">🔄 Reset Button Position</button>
+
+        <button class="reset-btn" id="resetBtn">Reset Button Position</button>
+        <div class="footer">Version 2.1</div>
     </div>
 
     <script src="popup.js"></script>
 </body>
 </html>
-=======
-    <div class="header">
-        <h1>YouTube Shorts Auto-Scroller</h1>
-        <p>Extension Settings</p>
-    </div>
-    
-    <div class="setting-group">
-        <div class="setting-title">Button Position Reset</div>
-        <div class="setting-description">
-            To reset the button position to its default location, open the browser console (F12) and run this command, then refresh the page:
-        </div>
-        <div style="background: #f1f3f4; padding: 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; margin: 8px 0; word-break: break-all; color: #333;">
-            localStorage.removeItem('yt-shorts-auto-scroll-btn-pos');
-        </div>
-        <div style="font-size: 11px; color: #666; margin-top: 8px;">
-            After running the command, refresh the YouTube Shorts page to see the button in its default position.
-        </div>
-    </div>
-    
-    <div class="footer">
-        Version 1.3 • Made with ❤️
-    </div>
-</body>
-</html>
->>>>>>> 6a42e8384ef2d5cc284ffe9f5519065eee9e5b01

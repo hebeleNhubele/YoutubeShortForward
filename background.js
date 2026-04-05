@@ -10,6 +10,33 @@ const POLL_INTERVAL_MS = 15_000;
 const scheduledWhenByTab = new Map();
 const enabledTabs = new Set();
 
+async function injectContentScriptIntoOpenYouTubeTabs() {
+  try {
+    const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
+    for (const tab of tabs) {
+      if (!tab?.id) continue;
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js'],
+        });
+      } catch {
+        // Ignore tabs where injection is not allowed.
+      }
+    }
+  } catch {
+    // Ignore query failures.
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  injectContentScriptIntoOpenYouTubeTabs();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  injectContentScriptIntoOpenYouTubeTabs();
+});
+
 function clampNumber(n, min, max) {
   if (!Number.isFinite(n)) return min;
   return Math.min(Math.max(n, min), max);

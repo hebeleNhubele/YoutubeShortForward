@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Shorts Auto-Scroller",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Automatically scroll to the next YouTube Short when one ends",
   "icons": {
     "16": "icon16.png",
@@ -9,17 +9,25 @@
     "128": "icon128.png"
   },
   "author": "Abdullah Anbar",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "alarms",
+    "scripting",
+    "tabs"
+  ],
   "content_scripts": [
     {
       "matches": [
-        "*://*.youtube.com/shorts/*"
+        "*://*.youtube.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"
     }
   ],
   "host_permissions": [
-    "*://*.youtube.com/shorts/*"
+    "*://*.youtube.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
